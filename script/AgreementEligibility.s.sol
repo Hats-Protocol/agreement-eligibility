@@ -23,7 +23,8 @@ contract Deploy is Script {
     address deployer = vm.rememberKey(privKey);
     vm.startBroadcast(deployer);
 
-    implementation = address(new AgreementEligibility{ salt: SALT }(version));
+    // TODO update deploy scripts
+    //implementation = address(new AgreementEligibility{ salt: SALT }(version));
 
     vm.stopBroadcast();
 

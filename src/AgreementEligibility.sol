@@ -97,7 +97,7 @@ contract AgreementEligibility is HatsEligibilityModule {
 
   /// @notice Deploy the implementation contract and set its version
   /// @dev This is only used to deploy the implementation contract, and should not be used to deploy clones
-  constructor(string memory _version) HatsModule(_version) { }
+  constructor(string memory _version, address _hat, uint256 _hatId) HatsModule(_version, _hat, _hatId) { }
 
   /*//////////////////////////////////////////////////////////////
                             INITIALIZER
@@ -105,6 +105,7 @@ contract AgreementEligibility is HatsEligibilityModule {
 
   /// @inheritdoc HatsModule
   function _setUp(bytes calldata _initData) internal override {
+    if (_initData.length == 0) return; // no init data, so we are done
     // decode init data
     (uint256 _ownerHat, uint256 _arbitratorHat, string memory agreement) =
       abi.decode(_initData, (uint256, uint256, string));
@@ -218,14 +219,20 @@ contract AgreementEligibility is HatsEligibilityModule {
     // set bad standing in this contract
     _badStandings[_wearer] = true;
 
-    // revoke _wearer's hat and set their standing to false in Hats.sol
-    HATS().setHatWearerStatus(hatId(), _wearer, false, false);
-
     /**
-     * @dev Hats.sol will emit the following events:
-     *   1. ERC1155.TransferSingle (burn)
-     *   2. Hats.WearerStandingChanged
+     * @dev This logic breaks compatibility with module chains, since the setHatWearerStatus call will revert if this
+     * contract is not directly set as the hat's eligibility module.
+     * TODO post-MVP, bring this back conditional on this contract being directly set as the hat's eligibility
+     * module
      */
+    // revoke _wearer's hat and set their standing to false in Hats.sol
+    // HATS().setHatWearerStatus(hatId(), _wearer, false, false);
+
+    // /**
+    //  * @dev Hats.sol will emit the following events:
+    //  *   1. ERC1155.TransferSingle (burn)
+    //  *   2. Hats.WearerStandingChanged
+    //  */
   }
 
   /**
@@ -236,7 +243,8 @@ contract AgreementEligibility is HatsEligibilityModule {
   function forgive(address _wearer) public onlyArbitrator {
     _badStandings[_wearer] = false;
 
-    HATS().setHatWearerStatus(hatId(), _wearer, true, true);
+    /// @dev Removing this for the same reason as in `revoke()` above
+    // HATS().setHatWearerStatus(hatId(), _wearer, true, true);
 
     /// @dev Hats.sol will emit a Hats.WearerStandingChanged event
   }
