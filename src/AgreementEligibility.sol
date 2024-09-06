@@ -218,8 +218,9 @@ contract AgreementEligibility is HatsEligibilityModule {
     // set bad standing in this contract
     _badStandings[_wearer] = true;
 
-    // revoke _wearer's hat and set their standing to false in Hats.sol
-    HATS().setHatWearerStatus(hatId(), _wearer, false, false);
+    // revoke _wearer's hat and set their standing to false in Hats.sol. We use the pull pattern (checkHatWearerStatus)
+    // rather than the push pattern (setHatWearerStatus) for compatibility with module chains.
+    HATS().checkHatWearerStatus(hatId(), _wearer);
 
     /**
      * @dev Hats.sol will emit the following events:
@@ -236,7 +237,9 @@ contract AgreementEligibility is HatsEligibilityModule {
   function forgive(address _wearer) public onlyArbitrator {
     _badStandings[_wearer] = false;
 
-    HATS().setHatWearerStatus(hatId(), _wearer, true, true);
+    // return the wearer to good standing in Hats.sol. We use the pull pattern (checkHatWearerStatus) rather than the
+    // push pattern (setHatWearerStatus) for compatibility with module chains.
+    HATS().checkHatWearerStatus(hatId(), _wearer);
 
     /// @dev Hats.sol will emit a Hats.WearerStandingChanged event
   }
