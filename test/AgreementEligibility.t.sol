@@ -25,7 +25,7 @@ contract AgreementEligibilityTest is Deploy, Test {
   // bytes32 public SALT;
 
   uint256 public fork;
-  uint256 public BLOCK_NUMBER = 18_265_713;
+  uint256 public BLOCK_NUMBER = 19_467_227; // deployment block for HatsModuleFactory v0.7.0
   IHats public constant HATS = IHats(0x3bc1A0Ad72417f2d411118085256fC53CBdDd137); // v1.hatsprotocol.eth
 
   string public FACTORY_VERSION = "factory test version";
@@ -54,7 +54,8 @@ contract WithInstanceTest is AgreementEligibilityTest {
     ClaimableFor
   }
 
-  HatsModuleFactory public factory;
+  HatsModuleFactory public factory = HatsModuleFactory(0x0a3f85fa597B6a967271286aA0724811acDF5CD9);
+  uint256 public constant SALT_NONCE = 1;
   AgreementEligibility public instance;
   MultiClaimsHatter public claimsHatter;
 
@@ -90,7 +91,7 @@ contract WithInstanceTest is AgreementEligibilityTest {
     initData = abi.encode(_ownerHat, _arbitratorHat, _agreement);
     // deploy the instance
     return AgreementEligibility(
-      deployModuleInstance(factory, address(implementation), _claimableHat, otherImmutableArgs, initData)
+      deployModuleInstance(factory, address(implementation), _claimableHat, otherImmutableArgs, initData, SALT_NONCE)
     );
   }
 
@@ -103,7 +104,9 @@ contract WithInstanceTest is AgreementEligibilityTest {
     initData = abi.encode(_claimableHats, _claimTypes);
     // deploy the instance
     return MultiClaimsHatter(
-      deployModuleInstance(factory, address(0xB985eA1be961f7c4A4C45504444C02c88c4fdEF9), _hatId, "", initData)
+      deployModuleInstance(
+        factory, address(0xB985eA1be961f7c4A4C45504444C02c88c4fdEF9), _hatId, "", initData, SALT_NONCE
+      )
     );
   }
 
@@ -145,35 +148,35 @@ contract WithInstanceTest is AgreementEligibilityTest {
 }
 
 contract Deployment is WithInstanceTest {
-  function test_version() public {
+  function test_version() public view {
     assertEq(instance.version(), MODULE_VERSION);
   }
 
-  function test_implementation() public {
+  function test_implementation() public view {
     assertEq(address(instance.IMPLEMENTATION()), address(implementation));
   }
 
-  function test_hats() public {
+  function test_hats() public view {
     assertEq(address(instance.HATS()), address(HATS));
   }
 
-  function test_claimableHat() public {
+  function test_claimableHat() public view {
     assertEq(instance.hatId(), claimableHat);
   }
 
-  function test_ownerHat() public {
+  function test_ownerHat() public view {
     assertEq(instance.ownerHat(), tophat);
   }
 
-  function test_arbitratorHat() public {
+  function test_arbitratorHat() public view {
     assertEq(instance.arbitratorHat(), arbitratorHat);
   }
 
-  function test_agreement() public {
+  function test_agreement() public view {
     assertEq(instance.currentAgreement(), agreement);
   }
 
-  function test_agreementId() public {
+  function test_agreementId() public view {
     assertEq(instance.currentAgreementId(), 1);
   }
 }
