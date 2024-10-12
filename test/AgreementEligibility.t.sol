@@ -10,7 +10,7 @@ import {
   AgreementEligibility_NotArbitrator,
   AgreementEligibility_HatNotMutable
 } from "../src/AgreementEligibility.sol";
-import { Deploy } from "../script/AgreementEligibility.s.sol";
+import { Deploy, DeployInstance } from "../script/AgreementEligibility.s.sol";
 import {
   IHats,
   HatsModuleFactory,
@@ -88,14 +88,12 @@ contract WithInstanceTest is AgreementEligibilityTest {
     uint256 _arbitratorHat,
     string memory _agreement
   ) public returns (AgreementEligibility) {
-    // encode the other immutable args as packed bytes
-    otherImmutableArgs = abi.encodePacked();
-    // encoded the initData as unpacked bytes
-    initData = abi.encode(_ownerHat, _arbitratorHat, _agreement);
-    // deploy the instance
-    return AgreementEligibility(
-      deployModuleInstance(factory, address(implementation), _claimableHat, otherImmutableArgs, initData, SALT_NONCE)
+    // create DeployInstance script and use it here
+    DeployInstance instanceDeployer = new DeployInstance();
+    instanceDeployer.prepare(
+      false, address(implementation), _claimableHat, _ownerHat, _arbitratorHat, _agreement, SALT_NONCE
     );
+    return instanceDeployer.run();
   }
 
   function deployMultiClaimsHatterInstance(

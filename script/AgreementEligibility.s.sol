@@ -3,6 +3,7 @@ pragma solidity ^0.8.18;
 
 import { Script, console2 } from "forge-std/Script.sol";
 import { AgreementEligibility } from "../src/AgreementEligibility.sol";
+import { HatsModuleFactory } from "../lib/hats-module/src/HatsModuleFactory.sol";
 
 contract Deploy is Script {
   address public implementation;
@@ -31,12 +32,86 @@ contract Deploy is Script {
       console2.log("Implementation:", implementation);
     }
   }
+
+  // forge script script/AgreementEligibility.s.sol:Deploy -f ethereum --broadcast --verify
+
+  /* 
+  forge verify-contract --chain-id 11155111 --num-of-optimizations 1000000 --watch 
+  --constructor-args $(cast abi-encode "constructor(string)" "0.4.0" ) \
+  --compiler-version v0.8.19 0xeC61e2Fca88BBa42B7e251A1A9738d9ad001B08B \
+  src/AgreementEligibility.sol:AgreementEligibility --etherscan-api-key $ETHERSCAN_KEY 
+  */
 }
 
-// forge script script/AgreementEligibility.s.sol -f ethereum --broadcast --verify
+contract DeployInstance is Script {
+  HatsModuleFactory public factory = HatsModuleFactory(0x0a3f85fa597B6a967271286aA0724811acDF5CD9);
+  AgreementEligibility public instance;
 
-/* 
-forge verify-contract --chain-id 42220 --num-of-optimizations 1000000 --watch --constructor-args $(cast abi-encode \
-"constructor(string)" "0.2.0" ) --compiler-version v0.8.19 0x8126d02F4EcDE43eca4543a0D90B755C3E225F09 \
-src/AgreementEligibility.sol:AgreementEligibility --etherscan-api-key $CELOSCAN_KEY
-*/
+  // default values
+  bool internal _verbose = true;
+  address internal _implementation = 0xeC61e2Fca88BBa42B7e251A1A9738d9ad001B08B; // 0.4.0
+
+  uint256 internal _saltNonce = 1;
+  uint256 internal _hatId = 0x000000380001000a000000000000000000000000000000000000000000000000; // 56.1.10
+  uint256 internal _ownerHat = 0x0000003800010000000000000000000000000000000000000000000000000000; // 56.1.0
+  uint256 internal _arbitratorHat = 0x0000003800010000000000000000000000000000000000000000000000000000; // 56.1.0
+  string internal _agreement = "ipfs://QmPK856cK97JH74S3VCo8v2UNPdE6TAzHcizzG3mpCJdpp";
+
+  /// @dev Override default values, if desired
+  function prepare(
+    bool verbose,
+    address implementation,
+    uint256 hatId,
+    uint256 ownerHat,
+    uint256 arbitratorHat,
+    string memory agreement,
+    uint256 saltNonce
+  ) public {
+    _verbose = verbose;
+    _implementation = implementation;
+    _hatId = hatId;
+    _saltNonce = saltNonce;
+    _ownerHat = ownerHat;
+    _arbitratorHat = arbitratorHat;
+    _agreement = agreement;
+  }
+
+  /// @dev Set up the deployer via their private key from the environment
+  function deployer() public returns (address) {
+    uint256 privKey = vm.envUint("PRIVATE_KEY");
+    return vm.rememberKey(privKey);
+  }
+
+  function _log(string memory prefix) internal view {
+    if (_verbose) {
+      console2.log(string.concat(prefix, "Instance:"), address(instance));
+    }
+  }
+
+  function run() public virtual returns (AgreementEligibility) {
+    vm.startBroadcast(deployer());
+
+    instance = AgreementEligibility(
+      factory.createHatsModule(
+        _implementation,
+        _hatId,
+        abi.encodePacked(), // other immutable args
+        abi.encode(_ownerHat, _arbitratorHat, _agreement), // init data
+        _saltNonce
+      )
+    );
+
+    vm.stopBroadcast();
+
+    _log("");
+    console2.log("version:", instance.version());
+    console2.log("agreement:", instance.currentAgreement());
+    console2.log("hatId:", instance.hatId());
+    console2.log("ownerHat:", instance.ownerHat());
+    console2.log("arbitratorHat:", instance.arbitratorHat());
+
+    return instance;
+  }
+
+  // forge script script/AgreementEligibility.s.sol:DeployInstance -f ethereum --broadcast
+}
