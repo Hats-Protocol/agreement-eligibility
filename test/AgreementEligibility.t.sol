@@ -36,6 +36,10 @@ contract AgreementEligibilityTest is Deploy, Test {
   event AgreementEligibility_AgreementSet(string agreement, uint256 grace);
   event AgreementEligibility_OwnerHatSet(uint256 newOwnerHat);
   event AgreementEligibility_ArbitratorHatSet(uint256 newArbitratorHat);
+  event AgreementEligibility_Revoked(address wearer);
+  event AgreementEligibility_Revoked(address[] wearers);
+  event AgreementEligibility_Forgiven(address wearer);
+  event AgreementEligibility_Forgiven(address[] wearers);
 
   function setUp() public virtual {
     // create and activate a fork, at BLOCK_NUMBER
@@ -350,6 +354,9 @@ contract Revoke is WithInstanceTest {
     instance.signAgreementAndClaimHat(address(claimsHatter));
 
     // revoke
+    vm.expectEmit();
+    emit AgreementEligibility_Revoked(claimer1);
+
     vm.prank(arbitrator);
     instance.revoke(claimer1);
 
@@ -390,6 +397,9 @@ contract RevokeMultiple is WithInstanceTest {
     }
 
     // revoke all the claimers
+    vm.expectEmit();
+    emit AgreementEligibility_Revoked(claimers);
+
     vm.prank(arbitrator);
     instance.revoke(claimers);
 
@@ -436,6 +446,9 @@ contract Forgive is WithInstanceTest {
     assertFalse(HATS.isWearerOfHat(claimer1, claimableHat));
 
     // forgive
+    vm.expectEmit();
+    emit AgreementEligibility_Forgiven(claimer1);
+
     vm.prank(arbitrator);
     instance.forgive(claimer1);
 
@@ -483,6 +496,9 @@ contract ForgiveMultiple is WithInstanceTest {
     instance.revoke(claimers);
 
     // forgive all the claimers
+    vm.expectEmit();
+    emit AgreementEligibility_Forgiven(claimers);
+
     vm.prank(arbitrator);
     instance.forgive(claimers);
 

@@ -36,6 +36,12 @@ contract AgreementEligibility is HatsEligibilityModule {
   event AgreementEligibility_OwnerHatSet(uint256 newOwnerHat);
   /// @dev Emitted when the `arbitratorHat` is set
   event AgreementEligibility_ArbitratorHatSet(uint256 newArbitratorHat);
+  /// @dev Emitted when a wearer's hat is revoked and placed in bad standing
+  event AgreementEligibility_Revoked(address wearer);
+  event AgreementEligibility_Revoked(address[] wearers);
+  /// @dev Emitted when a wearer is forgiven and their standing restored
+  event AgreementEligibility_Forgiven(address wearer);
+  event AgreementEligibility_Forgiven(address[] wearers);
 
   /*//////////////////////////////////////////////////////////////
                               CONSTANTS
@@ -216,6 +222,7 @@ contract AgreementEligibility is HatsEligibilityModule {
    */
   function revoke(address _wearer) public onlyArbitrator {
     _revoke(_wearer, hatId());
+    emit AgreementEligibility_Revoked(_wearer);
   }
 
   /**
@@ -232,6 +239,8 @@ contract AgreementEligibility is HatsEligibilityModule {
         ++i;
       }
     }
+
+    emit AgreementEligibility_Revoked(_wearers);
   }
 
   /**
@@ -241,6 +250,7 @@ contract AgreementEligibility is HatsEligibilityModule {
    */
   function forgive(address _wearer) public onlyArbitrator {
     _forgive(_wearer, hatId());
+    emit AgreementEligibility_Forgiven(_wearer);
   }
 
   /**
@@ -257,6 +267,8 @@ contract AgreementEligibility is HatsEligibilityModule {
         ++i;
       }
     }
+
+    emit AgreementEligibility_Forgiven(_wearers);
   }
 
   /**
