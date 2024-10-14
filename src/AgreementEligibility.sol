@@ -36,6 +36,12 @@ contract AgreementEligibility is HatsEligibilityModule {
   event AgreementEligibility_OwnerHatSet(uint256 newOwnerHat);
   /// @dev Emitted when the `arbitratorHat` is set
   event AgreementEligibility_ArbitratorHatSet(uint256 newArbitratorHat);
+  /// @dev Emitted when a wearer's hat is revoked and placed in bad standing
+  event AgreementEligibility_Revoked(address wearer);
+  event AgreementEligibility_Revoked(address[] wearers);
+  /// @dev Emitted when a wearer is forgiven and their standing restored
+  event AgreementEligibility_Forgiven(address wearer);
+  event AgreementEligibility_Forgiven(address[] wearers);
 
   /*//////////////////////////////////////////////////////////////
                               CONSTANTS
@@ -215,18 +221,26 @@ contract AgreementEligibility is HatsEligibilityModule {
    * @param _wearer The address of the wearer from whom to revoke the hat
    */
   function revoke(address _wearer) public onlyArbitrator {
-    // set bad standing in this contract
-    _badStandings[_wearer] = true;
+    _revoke(_wearer, hatId());
+    emit AgreementEligibility_Revoked(_wearer);
+  }
 
-    // revoke _wearer's hat and set their standing to false in Hats.sol. We use the pull pattern (checkHatWearerStatus)
-    // rather than the push pattern (setHatWearerStatus) for compatibility with module chains.
-    HATS().checkHatWearerStatus(hatId(), _wearer);
+  /**
+   * @notice Revoke multiple wearers' hats
+   * @dev Only callable by a wearer of the `arbitratorHat`
+   * @param _wearers The addresses of the wearers from whom to revoke the hats
+   */
+  function revoke(address[] calldata _wearers) public onlyArbitrator {
+    uint256 hatId = hatId();
+    for (uint256 i; i < _wearers.length;) {
+      _revoke(_wearers[i], hatId);
 
-    /**
-     * @dev Hats.sol will emit the following events:
-     *   1. ERC1155.TransferSingle (burn)
-     *   2. Hats.WearerStandingChanged
-     */
+      unchecked {
+        ++i;
+      }
+    }
+
+    emit AgreementEligibility_Revoked(_wearers);
   }
 
   /**
@@ -235,13 +249,26 @@ contract AgreementEligibility is HatsEligibilityModule {
    * @param _wearer The address of the wearer to forgive
    */
   function forgive(address _wearer) public onlyArbitrator {
-    _badStandings[_wearer] = false;
+    _forgive(_wearer, hatId());
+    emit AgreementEligibility_Forgiven(_wearer);
+  }
 
-    // return the wearer to good standing in Hats.sol. We use the pull pattern (checkHatWearerStatus) rather than the
-    // push pattern (setHatWearerStatus) for compatibility with module chains.
-    HATS().checkHatWearerStatus(hatId(), _wearer);
+  /**
+   * @notice Forgive multiple `_wearers`' bad standings, allowing them to claim the hat again
+   * @dev Only callable by a wearer of the `arbitratorHat`
+   * @param _wearers The addresses of the wearers to forgive
+   */
+  function forgive(address[] calldata _wearers) public onlyArbitrator {
+    uint256 hatId = hatId();
+    for (uint256 i; i < _wearers.length;) {
+      _forgive(_wearers[i], hatId);
 
-    /// @dev Hats.sol will emit a Hats.WearerStandingChanged event
+      unchecked {
+        ++i;
+      }
+    }
+
+    emit AgreementEligibility_Forgiven(_wearers);
   }
 
   /**
@@ -289,6 +316,34 @@ contract AgreementEligibility is HatsEligibilityModule {
     arbitratorHat = _newArbitratorHat;
 
     emit AgreementEligibility_ArbitratorHatSet(_newArbitratorHat);
+  }
+
+  /// @dev Revoke a wearer's hat and set their standing to false in Hats.sol
+  /// Unsafe. Does not check that the caller is wearing the arbitratorHat.
+  function _revoke(address _wearer, uint256 _hatId) internal {
+    _badStandings[_wearer] = true;
+
+    // revoke _wearer's hat and set their standing to false in Hats.sol. We use the pull pattern (checkHatWearerStatus)
+    // rather than the push pattern (setHatWearerStatus) for compatibility with module chains.
+    HATS().checkHatWearerStatus(_hatId, _wearer);
+
+    /**
+     * @dev Hats.sol will emit the following events:
+     *   1. ERC1155.TransferSingle (burn)
+     *   2. Hats.WearerStandingChanged
+     */
+  }
+
+  /// @dev Forgive a wearer and set their standing to true in Hats.sol
+  /// Unsafe. Does not check that the caller is wearing the arbitratorHat.
+  function _forgive(address _wearer, uint256 _hatId) internal {
+    _badStandings[_wearer] = false;
+
+    // return the wearer to good standing in Hats.sol. We use the pull pattern (checkHatWearerStatus) rather than the
+    // push pattern (setHatWearerStatus) for compatibility with module chains.
+    HATS().checkHatWearerStatus(_hatId, _wearer);
+
+    /// @dev Hats.sol will emit a Hats.WearerStandingChanged event
   }
 
   /*//////////////////////////////////////////////////////////////

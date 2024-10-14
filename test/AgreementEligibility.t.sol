@@ -10,7 +10,7 @@ import {
   AgreementEligibility_NotArbitrator,
   AgreementEligibility_HatNotMutable
 } from "../src/AgreementEligibility.sol";
-import { Deploy } from "../script/AgreementEligibility.s.sol";
+import { Deploy, DeployInstance } from "../script/AgreementEligibility.s.sol";
 import {
   IHats,
   HatsModuleFactory,
@@ -36,6 +36,10 @@ contract AgreementEligibilityTest is Deploy, Test {
   event AgreementEligibility_AgreementSet(string agreement, uint256 grace);
   event AgreementEligibility_OwnerHatSet(uint256 newOwnerHat);
   event AgreementEligibility_ArbitratorHatSet(uint256 newArbitratorHat);
+  event AgreementEligibility_Revoked(address wearer);
+  event AgreementEligibility_Revoked(address[] wearers);
+  event AgreementEligibility_Forgiven(address wearer);
+  event AgreementEligibility_Forgiven(address[] wearers);
 
   function setUp() public virtual {
     // create and activate a fork, at BLOCK_NUMBER
@@ -73,6 +77,9 @@ contract WithInstanceTest is AgreementEligibilityTest {
   address public arbitrator = makeAddr("arbitrator");
   address public claimer1 = makeAddr("claimer1");
   address public claimer2 = makeAddr("claimer2");
+  address public claimer3 = makeAddr("claimer3");
+  address public claimer4 = makeAddr("claimer4");
+  address public claimer5 = makeAddr("claimer5");
   address public nonWearer = makeAddr("nonWearer");
 
   string public agreement;
@@ -85,14 +92,12 @@ contract WithInstanceTest is AgreementEligibilityTest {
     uint256 _arbitratorHat,
     string memory _agreement
   ) public returns (AgreementEligibility) {
-    // encode the other immutable args as packed bytes
-    otherImmutableArgs = abi.encodePacked();
-    // encoded the initData as unpacked bytes
-    initData = abi.encode(_ownerHat, _arbitratorHat, _agreement);
-    // deploy the instance
-    return AgreementEligibility(
-      deployModuleInstance(factory, address(implementation), _claimableHat, otherImmutableArgs, initData, SALT_NONCE)
+    // create DeployInstance script and use it here
+    DeployInstance instanceDeployer = new DeployInstance();
+    instanceDeployer.prepare(
+      false, address(implementation), _claimableHat, _ownerHat, _arbitratorHat, _agreement, SALT_NONCE
     );
+    return instanceDeployer.run();
   }
 
   function deployMultiClaimsHatterInstance(
@@ -108,6 +113,16 @@ contract WithInstanceTest is AgreementEligibilityTest {
         factory, address(0xB985eA1be961f7c4A4C45504444C02c88c4fdEF9), _hatId, "", initData, SALT_NONCE
       )
     );
+  }
+
+  function _claimers() internal view returns (address[] memory) {
+    address[] memory claimers = new address[](5);
+    claimers[0] = claimer1;
+    claimers[1] = claimer2;
+    claimers[2] = claimer3;
+    claimers[3] = claimer4;
+    claimers[4] = claimer5;
+    return claimers;
   }
 
   function setUp() public virtual override {
@@ -339,6 +354,9 @@ contract Revoke is WithInstanceTest {
     instance.signAgreementAndClaimHat(address(claimsHatter));
 
     // revoke
+    vm.expectEmit();
+    emit AgreementEligibility_Revoked(claimer1);
+
     vm.prank(arbitrator);
     instance.revoke(claimer1);
 
@@ -361,6 +379,59 @@ contract Revoke is WithInstanceTest {
   }
 }
 
+contract RevokeMultiple is WithInstanceTest {
+  address[] public claimers;
+
+  function setUp() public virtual override {
+    super.setUp();
+    claimers = _claimers();
+  }
+
+  function test_happy(uint256 _numClaimers) public {
+    _numClaimers = bound(_numClaimers, 1, 5);
+
+    // claim hats
+    for (uint256 i; i < _numClaimers; ++i) {
+      vm.prank(claimers[i]);
+      instance.signAgreementAndClaimHat(address(claimsHatter));
+    }
+
+    // revoke all the claimers
+    vm.expectEmit();
+    emit AgreementEligibility_Revoked(claimers);
+
+    vm.prank(arbitrator);
+    instance.revoke(claimers);
+
+    // check that all claimers are revoked
+    for (uint256 i; i < _numClaimers; ++i) {
+      assertFalse(instance.wearerStanding(claimers[i]));
+      assertFalse(HATS.isWearerOfHat(claimers[i], claimableHat));
+    }
+  }
+
+  function test_revert_notArbitrator(uint256 _numClaimers) public {
+    _numClaimers = bound(_numClaimers, 1, 5);
+
+    // claim the hats
+    for (uint256 i; i < _numClaimers; ++i) {
+      vm.prank(claimers[i]);
+      instance.signAgreementAndClaimHat(address(claimsHatter));
+    }
+
+    // attempt to revoke from non-arbitrator, expecting revert
+    vm.prank(nonWearer);
+    vm.expectRevert(AgreementEligibility_NotArbitrator.selector);
+    instance.revoke(claimers);
+
+    // check that all claimers are still wearing the hat
+    for (uint256 i; i < _numClaimers; ++i) {
+      assertTrue(instance.wearerStanding(claimers[i]));
+      assertTrue(HATS.isWearerOfHat(claimers[i], claimableHat));
+    }
+  }
+}
+
 contract Forgive is WithInstanceTest {
   function test_happy() public {
     // claim the hat
@@ -375,6 +446,9 @@ contract Forgive is WithInstanceTest {
     assertFalse(HATS.isWearerOfHat(claimer1, claimableHat));
 
     // forgive
+    vm.expectEmit();
+    emit AgreementEligibility_Forgiven(claimer1);
+
     vm.prank(arbitrator);
     instance.forgive(claimer1);
 
@@ -397,6 +471,67 @@ contract Forgive is WithInstanceTest {
     instance.forgive(claimer1);
 
     assertFalse(instance.wearerStanding(claimer1));
+  }
+}
+
+contract ForgiveMultiple is WithInstanceTest {
+  address[] public claimers;
+
+  function setUp() public virtual override {
+    super.setUp();
+    claimers = _claimers();
+  }
+
+  function test_happy(uint256 _numClaimers) public {
+    _numClaimers = bound(_numClaimers, 1, 5);
+
+    // claim hats
+    for (uint256 i; i < _numClaimers; ++i) {
+      vm.prank(claimers[i]);
+      instance.signAgreementAndClaimHat(address(claimsHatter));
+    }
+
+    // revoke all the claimers
+    vm.prank(arbitrator);
+    instance.revoke(claimers);
+
+    // forgive all the claimers
+    vm.expectEmit();
+    emit AgreementEligibility_Forgiven(claimers);
+
+    vm.prank(arbitrator);
+    instance.forgive(claimers);
+
+    // check that all claimers are forgiven but not wearing the hat
+    for (uint256 i; i < _numClaimers; ++i) {
+      assertTrue(instance.wearerStanding(claimers[i]));
+      assertFalse(HATS.isWearerOfHat(claimers[i], claimableHat));
+    }
+  }
+
+  function test_revert_notArbitrator(uint256 _numClaimers) public {
+    _numClaimers = bound(_numClaimers, 1, 5);
+
+    // claim hats
+    for (uint256 i; i < _numClaimers; ++i) {
+      vm.prank(claimers[i]);
+      instance.signAgreementAndClaimHat(address(claimsHatter));
+    }
+
+    // revoke all the claimers
+    vm.prank(arbitrator);
+    instance.revoke(claimers);
+
+    // attempt to forgive from non-arbitrator, expecting revert
+    vm.prank(nonWearer);
+    vm.expectRevert(AgreementEligibility_NotArbitrator.selector);
+    instance.forgive(claimers);
+
+    // check that all claimers are still revoked
+    for (uint256 i; i < _numClaimers; ++i) {
+      assertFalse(instance.wearerStanding(claimers[i]));
+      assertFalse(HATS.isWearerOfHat(claimers[i], claimableHat));
+    }
   }
 }
 
