@@ -36,9 +36,9 @@ contract Deploy is Script {
   // forge script script/AgreementEligibility.s.sol:Deploy -f ethereum --broadcast --verify
 
   /* 
-  forge verify-contract --chain-id 11155111 --num-of-optimizations 1000000 --watch 
+  forge verify-contract --chain-id 11155111 --num-of-optimizations 1000000 --watch \
   --constructor-args $(cast abi-encode "constructor(string)" "0.4.0" ) \
-  --compiler-version v0.8.19 0xeC61e2Fca88BBa42B7e251A1A9738d9ad001B08B \
+  --compiler-version v0.8.19 0x4F10B9e99ce11f081652646f4b192ed1b812D5Bb \
   src/AgreementEligibility.sol:AgreementEligibility --etherscan-api-key $ETHERSCAN_KEY 
   */
 }
@@ -49,7 +49,7 @@ contract DeployInstance is Script {
 
   // default values
   bool internal _verbose = true;
-  address internal _implementation = 0xeC61e2Fca88BBa42B7e251A1A9738d9ad001B08B; // 0.4.0
+  address internal _implementation = 0x4F10B9e99ce11f081652646f4b192ed1b812D5Bb; // 0.4.0
 
   uint256 internal _saltNonce = 1;
   uint256 internal _hatId = 0x000000380001000a000000000000000000000000000000000000000000000000; // 56.1.10
