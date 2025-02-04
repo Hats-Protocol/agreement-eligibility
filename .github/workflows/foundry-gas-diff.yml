@@ -16,9 +16,7 @@ on:
 env:
   FOUNDRY_PROFILE: default
   INFURA_KEY: ${{ secrets.INFURA_KEY }}
-  ALCHEMY_KEY: ${{ secrets.ALCHEMY_KEY }}
   GC_RPC: ${{ secrets.GC_RPC }}
-  POLYGON_RPC: ${{ secrets.POLYGON_RPC }}
   PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
 
 jobs:
@@ -31,8 +29,6 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
 
       # Add any step generating a gas report to a temporary file named gasreport.ansi. For example:
       - name: Run tests
