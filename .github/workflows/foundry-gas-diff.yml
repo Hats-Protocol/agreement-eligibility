@@ -16,9 +16,7 @@ on:
 env:
   FOUNDRY_PROFILE: default
   INFURA_KEY: ${{ secrets.INFURA_KEY }}
-  ALCHEMY_KEY: ${{ secrets.ALCHEMY_KEY }}
   GC_RPC: ${{ secrets.GC_RPC }}
-  POLYGON_RPC: ${{ secrets.POLYGON_RPC }}
   PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
 
 jobs:
@@ -31,8 +29,6 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
 
       # Add any step generating a gas report to a temporary file named gasreport.ansi. For example:
       - name: Run tests
@@ -45,10 +41,12 @@ jobs:
       - name: Compare gas reports
         uses: Rubilmax/foundry-gas-diff@v3.13.6
         with:
-          summaryQuantile: 0.9 # only display the 10% most significant gas diffs in the summary (defaults to 20%)
-          sortCriteria: avg,max # sort diff rows by criteria
-          sortOrders: desc,asc # and directions
-          ignore: test-foundry/**/* # filter out gas reports from specific paths (test/ is included by default)
+          report: gasreport.ansi
+          summaryQuantile: 0.9
+          sortCriteria: avg,max
+          sortOrders: desc,asc
+          ignore: test-foundry/**/*
+          artifactName: gas_report_${{ github.head_ref || github.ref_name }}
         id: gas_diff
 
       - name: Add gas diff to sticky comment
